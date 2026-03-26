@@ -1,0 +1,1323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Safe Harassment Reporter — anonymously report harassment incidents, access emergency contacts, and find support resources." />
+  <meta name="theme-color" content="#1a1a2e" />
+  <title>Safe Harassment Reporter</title>
+  <style>
+    /* ── CSS Reset ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f5f5f5; color: #1a1a1a; min-height: 100vh; display: flex; flex-direction: column; }
+    img, svg { display: block; max-width: 100%; }
+    button, input, select, textarea { font: inherit; }
+    a { color: inherit; }
+
+    /* ── Focus indicators (WCAG 2.1 AA) ── */
+    :focus-visible {
+      outline: 3px solid #005fcc;
+      outline-offset: 2px;
+    }
+
+    /* ── RTL support ── */
+    body.rtl { direction: rtl; text-align: right; }
+
+    /* ── Top bar ── */
+    #top-bar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background: #1a1a2e;
+      color: #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    #app-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    #btn-emergency-top {
+      background: #d32f2f;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 0.5rem 1rem;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #btn-emergency-top:hover { background: #b71c1c; }
+    #btn-emergency-top:focus-visible { outline: 3px solid #ffcc00; outline-offset: 2px; }
+
+    /* ── Main content area ── */
+    #main-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      padding-bottom: 5rem; /* space for bottom tab bar */
+      max-width: 768px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* ── Views ── */
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* ── Bottom tab bar ── */
+    #bottom-tabs {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      display: flex;
+      background: #fff;
+      border-top: 1px solid #ddd;
+      box-shadow: 0 -2px 6px rgba(0,0,0,0.1);
+    }
+    .tab-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.2rem;
+      padding: 0.6rem 0.25rem;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 0.75rem;
+      color: #555;
+      transition: color 0.15s, background 0.15s;
+    }
+    .tab-btn .tab-icon { font-size: 1.3rem; line-height: 1; }
+    .tab-btn.active { color: #1a1a2e; font-weight: 700; }
+    .tab-btn.emergency-tab { color: #d32f2f; }
+    .tab-btn.emergency-tab.active { color: #b71c1c; }
+    .tab-btn:hover { background: #f0f0f0; }
+
+    /* ── Responsive ── */
+    @media (max-width: 360px) {
+      #app-name { font-size: 0.95rem; }
+      #btn-emergency-top { padding: 0.4rem 0.65rem; font-size: 0.85rem; }
+      .tab-btn { font-size: 0.68rem; padding: 0.5rem 0.15rem; }
+      .tab-btn .tab-icon { font-size: 1.1rem; }
+      #main-content { padding: 0.75rem; }
+      #btn-submit { width: 100%; }
+    }
+    @media (min-width: 768px) {
+      #main-content { padding: 2rem; }
+      #top-bar { padding: 1rem 2rem; }
+    }
+    @media (min-width: 1024px) {
+      #bottom-tabs { display: none; }
+      #top-bar { gap: 2rem; }
+      #top-nav { display: flex; gap: 1rem; }
+    }
+    @media (max-width: 1023px) {
+      #top-nav { display: none; }
+    }
+
+    /* ── Top nav (desktop) ── */
+    #top-nav { align-items: center; }
+    .top-nav-btn {
+      background: none;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.95rem;
+      padding: 0.4rem 0.75rem;
+      border-radius: 4px;
+      transition: background 0.15s;
+    }
+    .top-nav-btn:hover { background: rgba(255,255,255,0.15); }
+    .top-nav-btn.active { background: rgba(255,255,255,0.2); font-weight: 700; }
+
+    /* ── Placeholder section styles ── */
+    .view h1 { font-size: 1.5rem; margin-bottom: 1rem; color: #1a1a2e; }
+    .view p { color: #555; line-height: 1.6; }
+
+    /* ── Report Form ── */
+    #report-form { display: flex; flex-direction: column; gap: 1.25rem; }
+
+    .form-group { display: flex; flex-direction: column; gap: 0.35rem; }
+
+    .form-group label {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: #1a1a2e;
+    }
+
+    .form-group textarea,
+    .form-group input[type="text"],
+    .form-group input[type="datetime-local"],
+    .form-group select {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      border: 1.5px solid #ccc;
+      border-radius: 6px;
+      background: #fff;
+      color: #1a1a1a;
+      transition: border-color 0.15s;
+    }
+
+    .form-group textarea:focus,
+    .form-group input[type="text"]:focus,
+    .form-group input[type="datetime-local"]:focus,
+    .form-group select:focus {
+      border-color: #005fcc;
+      outline: none;
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 120px;
+    }
+
+    .char-counter {
+      font-size: 0.8rem;
+      color: #666;
+      text-align: right;
+    }
+    .char-counter.over-limit { color: #d32f2f; font-weight: 700; }
+
+    .field-error {
+      font-size: 0.82rem;
+      color: #d32f2f;
+      display: none;
+    }
+    .field-error.visible { display: block; }
+
+    .form-group.has-error textarea,
+    .form-group.has-error input,
+    .form-group.has-error select {
+      border-color: #d32f2f;
+    }
+
+    /* location opt-in row */
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .checkbox-row input[type="checkbox"] {
+      width: 1.1rem;
+      height: 1.1rem;
+      cursor: pointer;
+      accent-color: #1a1a2e;
+    }
+    .checkbox-row label {
+      font-weight: 500;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+
+    #location-display {
+      margin-top: 0.5rem;
+      padding: 0.6rem 0.75rem;
+      background: #eef4ff;
+      border: 1px solid #b3d0ff;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      color: #1a1a2e;
+      display: none;
+    }
+
+    #location-display .location-loading {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: #555;
+    }
+
+    #location-display .location-coords {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+
+    #location-display .location-coords strong {
+      color: #1a1a2e;
+    }
+
+    #location-manual {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    #location-manual label {
+      font-weight: 600;
+      font-size: 0.88rem;
+      color: #1a1a2e;
+    }
+
+    #location-manual input[type="text"] {
+      width: 100%;
+      padding: 0.5rem 0.65rem;
+      border: 1.5px solid #ccc;
+      border-radius: 6px;
+      background: #fff;
+      color: #1a1a1a;
+      font-size: 0.88rem;
+      transition: border-color 0.15s;
+    }
+
+    #location-manual input[type="text"]:focus {
+      border-color: #005fcc;
+      outline: none;
+    }
+
+    #btn-submit {
+      align-self: flex-start;
+      background: #1a1a2e;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 0.7rem 1.75rem;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #btn-submit:hover { background: #2e2e50; }
+    #btn-submit:focus-visible { outline: 3px solid #005fcc; outline-offset: 2px; }
+
+    /* ── Confirmation message ── */
+    #confirmation-message {
+      display: none;
+      padding: 1.5rem;
+      background: #e8f5e9;
+      border: 2px solid #4caf50;
+      border-radius: 8px;
+      text-align: center;
+    }
+    #confirmation-message.visible { display: block; }
+    #confirmation-message h2 {
+      color: #2e7d32;
+      font-size: 1.3rem;
+      margin-bottom: 0.75rem;
+    }
+    #confirmation-message p {
+      color: #1a1a1a;
+      margin-bottom: 0.5rem;
+      line-height: 1.6;
+    }
+    #confirmation-report-id {
+      display: inline-block;
+      font-family: monospace;
+      font-size: 1.2rem;
+      font-weight: 700;
+      background: #fff;
+      border: 1.5px solid #4caf50;
+      border-radius: 4px;
+      padding: 0.3rem 0.75rem;
+      letter-spacing: 0.1em;
+      color: #1a1a2e;
+      margin: 0.25rem 0;
+    }
+    #confirmation-message .confirmation-note {
+      font-size: 0.85rem;
+      color: #555;
+      margin-top: 0.5rem;
+    }
+    #btn-submit-another {
+      margin-top: 1rem;
+      background: #1a1a2e;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 0.6rem 1.25rem;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #btn-submit-another:hover { background: #2e2e50; }
+    #btn-submit-another:focus-visible { outline: 3px solid #005fcc; outline-offset: 2px; }
+
+    /* ── Delete Report section ── */
+    #delete-report-section {
+      margin-top: 1.5rem;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    #delete-report-toggle {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background: #f9f9f9;
+      border: none;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #1a1a2e;
+      text-align: left;
+      transition: background 0.15s;
+    }
+    #delete-report-toggle:hover { background: #f0f0f0; }
+    #delete-report-toggle[aria-expanded="true"] { background: #f0f0f0; }
+    #delete-report-toggle .toggle-arrow { font-size: 0.8rem; transition: transform 0.2s; }
+    #delete-report-toggle[aria-expanded="true"] .toggle-arrow { transform: rotate(180deg); }
+
+    #delete-report-body {
+      display: none;
+      padding: 1rem;
+      background: #fff;
+      border-top: 1px solid #ddd;
+    }
+    #delete-report-body.open { display: block; }
+
+    #delete-report-body .form-group { margin-bottom: 0.75rem; }
+
+    #btn-delete-report {
+      background: #d32f2f;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 0.6rem 1.25rem;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #btn-delete-report:hover { background: #b71c1c; }
+    #btn-delete-report:focus-visible { outline: 3px solid #005fcc; outline-offset: 2px; }
+
+    #delete-status {
+      margin-top: 0.75rem;
+      padding: 0.6rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      display: none;
+    }
+    #delete-status.success {
+      display: block;
+      background: #e8f5e9;
+      border: 1.5px solid #4caf50;
+      color: #2e7d32;
+      font-weight: 600;
+    }
+    #delete-status.error {
+      display: block;
+      background: #ffebee;
+      border: 1.5px solid #d32f2f;
+      color: #b71c1c;
+      font-weight: 600;
+    }
+
+    /* ── Card lists: no bullet points ── */
+    .emergency-contacts-list,
+    .resources-list {
+      list-style: none;
+    }
+
+    /* ── Emergency Contacts ── */
+    .emergency-intro {
+      color: #555;
+      line-height: 1.6;
+      margin-bottom: 1.25rem;
+    }
+
+    .emergency-contacts-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .emergency-card {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      padding: 1rem 1.25rem;
+      background: #fff;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+
+    .emergency-card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .emergency-card-icon {
+      font-size: 1.4rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .emergency-card-name {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #1a1a2e;
+    }
+
+    .emergency-card-desc {
+      font-size: 0.88rem;
+      color: #555;
+      line-height: 1.5;
+    }
+
+    .emergency-card-phone {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: #d32f2f;
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 0.55rem 1.1rem;
+      border-radius: 6px;
+      align-self: flex-start;
+      transition: background 0.15s;
+    }
+
+    .emergency-card-phone:hover { background: #b71c1c; }
+    .emergency-card-phone:focus-visible { outline: 3px solid #005fcc; outline-offset: 2px; }
+
+    @media (min-width: 480px) {
+      .emergency-card {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+      .emergency-card-info { flex: 1; }
+      .emergency-card-phone { align-self: center; white-space: nowrap; }
+    }
+
+    /* ── Support Resources ── */
+    .resources-filter {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .filter-btn {
+      background: #f0f0f0;
+      color: #1a1a2e;
+      border: 1.5px solid #ccc;
+      border-radius: 20px;
+      padding: 0.4rem 1rem;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .filter-btn:hover { background: #e0e0e0; }
+    .filter-btn.active {
+      background: #1a1a2e;
+      color: #fff;
+      border-color: #1a1a2e;
+    }
+    .filter-btn:focus-visible { outline: 3px solid #005fcc; outline-offset: 2px; }
+
+    .resources-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .resource-card {
+      background: #fff;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .resource-card.hidden { display: none; }
+
+    .resource-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .resource-card-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #1a1a2e;
+    }
+
+    .resource-category-tag {
+      flex-shrink: 0;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 0.2rem 0.6rem;
+      border-radius: 12px;
+    }
+    .resource-category-tag.legal    { background: #e3f2fd; color: #0d47a1; }
+    .resource-category-tag.counseling { background: #f3e5f5; color: #6a1b9a; }
+    .resource-category-tag.community  { background: #e8f5e9; color: #1b5e20; }
+
+    .resource-card-desc {
+      font-size: 0.88rem;
+      color: #555;
+      line-height: 1.5;
+    }
+
+    .resource-card-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #005fcc;
+      text-decoration: none;
+      align-self: flex-start;
+    }
+    .resource-card-link:hover { text-decoration: underline; }
+    .resource-card-link:focus-visible { outline: 3px solid #005fcc; outline-offset: 2px; }
+
+    /* ── Warning banner ── */
+    #warning-banner {
+      display: none;
+      padding: 0.75rem 1rem;
+      background: #fff3e0;
+      border-bottom: 2px solid #ff9800;
+      color: #e65100;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-align: center;
+    }
+    #warning-banner.visible { display: block; }
+  </style>
+</head>
+<body>
+
+  <!-- SubtleCrypto unavailable warning banner -->
+  <div id="warning-banner" role="alert" aria-live="assertive"></div>
+
+  <!-- Top bar -->
+  <header id="top-bar" role="banner">
+    <span id="app-name">Safe Reporter</span>
+    <nav id="top-nav" aria-label="Main navigation">
+      <button class="top-nav-btn" onclick="showView('report')" aria-label="Go to Report view">Report</button>
+      <button class="top-nav-btn" onclick="showView('resources')" aria-label="Go to Resources view">Resources</button>
+    </nav>
+    <button id="btn-emergency-top" onclick="showView('emergency')" aria-label="Emergency contacts">🚨 Emergency</button>
+  </header>
+
+  <!-- Main content -->
+  <main id="main-content" role="main">
+
+    <section id="view-report" class="view" aria-label="Submit a report">
+      <h1>Report an Incident</h1>
+      <form id="report-form" novalidate>
+
+        <!-- Description -->
+        <div class="form-group" id="group-description">
+          <label for="field-description">Describe the incident <span aria-hidden="true">*</span></label>
+          <textarea
+            id="field-description"
+            name="description"
+            maxlength="2000"
+            rows="5"
+            placeholder="Describe what happened…"
+            aria-describedby="desc-counter desc-error"
+            aria-required="true"
+          ></textarea>
+          <span id="desc-counter" class="char-counter" aria-live="polite">0 / 2000</span>
+          <span id="desc-error" class="field-error" role="alert"></span>
+        </div>
+
+        <!-- Date / Time -->
+        <div class="form-group" id="group-datetime">
+          <label for="field-datetime">Date and time of incident</label>
+          <input
+            type="datetime-local"
+            id="field-datetime"
+            name="dateTime"
+            aria-describedby="datetime-error"
+          />
+          <span id="datetime-error" class="field-error" role="alert"></span>
+        </div>
+
+        <!-- Category -->
+        <div class="form-group" id="group-category">
+          <label for="field-category">Category <span aria-hidden="true">*</span></label>
+          <select id="field-category" name="category" aria-describedby="category-error" aria-required="true">
+            <option value="">— Select a category —</option>
+            <option value="verbal">Verbal harassment</option>
+            <option value="physical">Physical harassment</option>
+            <option value="online">Online harassment</option>
+            <option value="stalking">Stalking</option>
+            <option value="other">Other</option>
+          </select>
+          <span id="category-error" class="field-error" role="alert"></span>
+        </div>
+
+        <!-- Other category (hidden by default) -->
+        <div class="form-group" id="group-other-category" style="display:none;">
+          <label for="field-other-category">Please specify <span aria-hidden="true">*</span></label>
+          <input
+            type="text"
+            id="field-other-category"
+            name="otherCategory"
+            placeholder="Describe the category…"
+            aria-describedby="other-category-error"
+            aria-required="true"
+          />
+          <span id="other-category-error" class="field-error" role="alert"></span>
+        </div>
+
+        <!-- Location opt-in -->
+        <div class="form-group">
+          <div class="checkbox-row">
+            <input type="checkbox" id="field-location-toggle" name="locationToggle" />
+            <label for="field-location-toggle">Attach my location to this report (optional)</label>
+          </div>
+          <!-- Location display area — wired in task 2.4 -->
+          <div id="location-display" aria-live="polite"></div>
+        </div>
+
+        <!-- Submit -->
+        <button type="submit" id="btn-submit">Submit Report</button>
+
+      </form>
+
+      <!-- Confirmation message (shown after successful submission) -->
+      <div id="confirmation-message" role="status" aria-live="polite">
+        <h2>✅ Report Submitted</h2>
+        <p>Your report has been saved securely on this device.</p>
+        <p>Your Report ID:</p>
+        <span id="confirmation-report-id"></span>
+        <p class="confirmation-note">Save this ID if you wish to reference or delete your report later.</p>
+        <button type="button" id="btn-submit-another" aria-label="Submit another report">Submit another report</button>
+      </div>
+
+      <!-- Delete a Report -->
+      <div id="delete-report-section">
+        <button
+          id="delete-report-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="delete-report-body"
+        >
+          🗑️ Delete a Report
+          <span class="toggle-arrow" aria-hidden="true">▼</span>
+        </button>
+        <div id="delete-report-body" role="region" aria-label="Delete a report">
+          <div class="form-group">
+            <label for="field-delete-id">Report ID</label>
+            <input
+              type="text"
+              id="field-delete-id"
+              placeholder="Enter your Report ID…"
+              aria-describedby="delete-status"
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </div>
+          <button type="button" id="btn-delete-report">Delete Report</button>
+          <div id="delete-status" role="alert" aria-live="polite"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-emergency" class="view" aria-label="Emergency contacts">
+      <h1>Emergency Contacts</h1>
+      <p class="emergency-intro">If you are in immediate danger, call emergency services now. Tap any number below to dial directly.</p>
+      <ul class="emergency-contacts-list" id="emergency-contacts-list" aria-label="Emergency contact cards">
+        <!-- Rendered by JS -->
+      </ul>
+    </section>
+
+    <section id="view-resources" class="view" aria-label="Support resources">
+      <h1>Support Resources</h1>
+      <div class="resources-filter" role="group" aria-label="Filter resources by category">
+        <button class="filter-btn active" data-filter="all" aria-pressed="true">All</button>
+        <button class="filter-btn" data-filter="legal" aria-pressed="false">Legal</button>
+        <button class="filter-btn" data-filter="counseling" aria-pressed="false">Counseling</button>
+        <button class="filter-btn" data-filter="community" aria-pressed="false">Community</button>
+      </div>
+      <ul class="resources-list" id="resources-list" aria-label="Support resource cards">
+        <!-- Rendered by JS -->
+      </ul>
+    </section>
+
+  </main>
+
+  <!-- Bottom tab bar -->
+  <nav id="bottom-tabs" aria-label="Bottom navigation">
+    <button class="tab-btn" id="tab-report" onclick="showView('report')" aria-label="Report tab">
+      <span class="tab-icon" aria-hidden="true">📝</span>
+      Report
+    </button>
+    <button class="tab-btn emergency-tab" id="tab-emergency" onclick="showView('emergency')" aria-label="Emergency tab">
+      <span class="tab-icon" aria-hidden="true">🚨</span>
+      Emergency
+    </button>
+    <button class="tab-btn" id="tab-resources" onclick="showView('resources')" aria-label="Resources tab">
+      <span class="tab-icon" aria-hidden="true">📚</span>
+      Resources
+    </button>
+  </nav>
+
+  <script>
+    // ── Navigation ──
+    let currentView = null;
+
+    function showView(name) {
+      // Hide all views
+      document.querySelectorAll('.view').forEach(function(el) {
+        el.classList.remove('active');
+      });
+
+      // Deactivate all tab buttons and top-nav buttons
+      document.querySelectorAll('.tab-btn').forEach(function(btn) {
+        btn.classList.remove('active');
+        btn.removeAttribute('aria-current');
+      });
+      document.querySelectorAll('.top-nav-btn').forEach(function(btn) {
+        btn.classList.remove('active');
+        btn.removeAttribute('aria-current');
+      });
+
+      // Show the requested view
+      var view = document.getElementById('view-' + name);
+      if (view) {
+        view.classList.add('active');
+      }
+
+      // Activate the matching tab
+      var tab = document.getElementById('tab-' + name);
+      if (tab) {
+        tab.classList.add('active');
+        tab.setAttribute('aria-current', 'page');
+      }
+
+      // Activate matching top-nav button
+      document.querySelectorAll('.top-nav-btn').forEach(function(btn) {
+        if (btn.getAttribute('onclick') === "showView('" + name + "')") {
+          btn.classList.add('active');
+          btn.setAttribute('aria-current', 'page');
+        }
+      });
+
+      currentView = name;
+    }
+
+    // ── RTL detection ──
+    (function detectRTL() {
+      var rtlLangs = ['ar', 'he', 'fa', 'ur', 'ps', 'sd', 'ug', 'yi', 'dv'];
+      var lang = document.documentElement.lang || navigator.language || '';
+      var base = lang.split('-')[0].toLowerCase();
+      if (rtlLangs.indexOf(base) !== -1) {
+        document.body.classList.add('rtl');
+      }
+    })();
+
+    // ── Default view ──
+    showView('report');
+
+    // ── Report Form ──
+
+    // Live char counter
+    var descField = document.getElementById('field-description');
+    var descCounter = document.getElementById('desc-counter');
+    descField.addEventListener('input', function() {
+      var len = descField.value.length;
+      descCounter.textContent = len + ' / 2000';
+      if (len > 2000) {
+        descCounter.classList.add('over-limit');
+      } else {
+        descCounter.classList.remove('over-limit');
+      }
+    });
+
+    // Show/hide "other category" field
+    var categorySelect = document.getElementById('field-category');
+    var groupOther = document.getElementById('group-other-category');
+    var otherField = document.getElementById('field-other-category');
+    categorySelect.addEventListener('change', function() {
+      var isOther = categorySelect.value === 'other';
+      groupOther.style.display = isOther ? '' : 'none';
+      otherField.required = isOther;
+    });
+
+    /**
+     * Validates the report form.
+     * @returns {{ valid: boolean, errors: string[] }}
+     */
+    function validateForm() {
+      var errors = [];
+
+      // Clear previous error states
+      document.querySelectorAll('.form-group').forEach(function(g) {
+        g.classList.remove('has-error');
+      });
+      document.querySelectorAll('.field-error').forEach(function(el) {
+        el.textContent = '';
+        el.classList.remove('visible');
+      });
+
+      // Description
+      var desc = descField.value;
+      var descGroupEl = document.getElementById('group-description');
+      var descErrorEl = document.getElementById('desc-error');
+      if (!desc || desc.trim().length === 0) {
+        errors.push('Description is required.');
+        descGroupEl.classList.add('has-error');
+        descErrorEl.textContent = 'Please describe the incident.';
+        descErrorEl.classList.add('visible');
+      } else if (desc.length > 2000) {
+        errors.push('Description must not exceed 2000 characters.');
+        descGroupEl.classList.add('has-error');
+        descErrorEl.textContent = 'Description must not exceed 2000 characters.';
+        descErrorEl.classList.add('visible');
+      }
+
+      // "Other" category requires specification
+      if (categorySelect.value === 'other') {
+        var otherVal = otherField.value;
+        var otherGroupEl = document.getElementById('group-other-category');
+        var otherErrorEl = document.getElementById('other-category-error');
+        if (!otherVal || otherVal.trim().length === 0) {
+          errors.push('Please specify the category.');
+          otherGroupEl.classList.add('has-error');
+          otherErrorEl.textContent = 'Please specify the category.';
+          otherErrorEl.classList.add('visible');
+        }
+      }
+
+      return { valid: errors.length === 0, errors: errors };
+    }
+
+    // ── Location capture ──
+
+    /** @type {{ type: string, latitude?: number, longitude?: number, address?: string } | null} */
+    var capturedLocation = null;
+
+    var locationToggle = document.getElementById('field-location-toggle');
+    var locationDisplay = document.getElementById('location-display');
+
+    function showLocationLoading() {
+      locationDisplay.style.display = '';
+      locationDisplay.innerHTML =
+        '<div class="location-loading" aria-live="polite">' +
+          '<span aria-hidden="true">⏳</span> Fetching your location…' +
+        '</div>';
+    }
+
+    function showLocationCoords(lat, lng) {
+      capturedLocation = { type: 'gps', latitude: lat, longitude: lng };
+      locationDisplay.style.display = '';
+      locationDisplay.innerHTML =
+        '<div class="location-coords">' +
+          '<strong>📍 Location captured (GPS)</strong>' +
+          '<span>Latitude: ' + lat.toFixed(6) + '</span>' +
+          '<span>Longitude: ' + lng.toFixed(6) + '</span>' +
+        '</div>';
+    }
+
+    function showManualAddressInput(prefillValue) {
+      locationDisplay.style.display = '';
+      var currentVal = prefillValue || (capturedLocation && capturedLocation.type === 'manual' ? capturedLocation.address : '') || '';
+      locationDisplay.innerHTML =
+        '<div id="location-manual">' +
+          '<label for="field-location-address">Enter address manually</label>' +
+          '<input type="text" id="field-location-address" placeholder="Street, city, country…" value="' + currentVal.replace(/"/g, '&quot;') + '" aria-describedby="location-manual-hint" />' +
+          '<span id="location-manual-hint" style="font-size:0.8rem;color:#555;">Geolocation unavailable or denied — please enter your location.</span>' +
+        '</div>';
+
+      // Update capturedLocation as user types
+      document.getElementById('field-location-address').addEventListener('input', function() {
+        var addr = this.value.trim();
+        if (addr) {
+          capturedLocation = { type: 'manual', address: addr };
+        } else {
+          capturedLocation = null;
+        }
+      });
+
+      // Seed initial value if already typed
+      if (currentVal) {
+        capturedLocation = { type: 'manual', address: currentVal };
+      } else {
+        capturedLocation = null;
+      }
+    }
+
+    function captureLocation() {
+      if (!locationToggle.checked) {
+        // Opt-out: hide display and clear data
+        locationDisplay.style.display = 'none';
+        locationDisplay.innerHTML = '';
+        capturedLocation = null;
+        return;
+      }
+
+      // Opt-in: try geolocation
+      if (!navigator.geolocation) {
+        // API unavailable — show manual input
+        showManualAddressInput();
+        return;
+      }
+
+      showLocationLoading();
+
+      navigator.geolocation.getCurrentPosition(
+        function(position) {
+          showLocationCoords(position.coords.latitude, position.coords.longitude);
+        },
+        function(/* error */) {
+          // Permission denied or other error — fall back to manual
+          showManualAddressInput();
+        },
+        { timeout: 10000, maximumAge: 60000 }
+      );
+    }
+
+    locationToggle.addEventListener('change', captureLocation);
+
+    // Form submit handler
+    document.getElementById('report-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var result = validateForm();
+      if (!result.valid) return;
+      submitReport();
+    });
+
+    // ── Crypto utilities ──
+
+    /**
+     * Generates a 12-character hex Report ID using crypto.getRandomValues.
+     * @returns {string}
+     */
+    function generateReportId() {
+      var bytes = new Uint8Array(6); // 6 bytes = 12 hex chars
+      window.crypto.getRandomValues(bytes);
+      return Array.from(bytes).map(function(b) {
+        return b.toString(16).padStart(2, '0');
+      }).join('');
+    }
+
+    /**
+     * Encrypts a plaintext string using AES-256-GCM via SubtleCrypto.
+     * A fresh random key and IV are generated per call; the key is NOT stored.
+     * @param {string} plaintext
+     * @returns {Promise<{ iv: string, ciphertext: string }>}
+     */
+    async function encryptReport(plaintext) {
+      var iv = window.crypto.getRandomValues(new Uint8Array(12));
+
+      var key = await window.crypto.subtle.generateKey(
+        { name: 'AES-GCM', length: 256 },
+        false, // not extractable — key is never stored
+        ['encrypt']
+      );
+
+      var encoded = new TextEncoder().encode(plaintext);
+      var ciphertextBuffer = await window.crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv: iv },
+        key,
+        encoded
+      );
+
+      // Convert to base64
+      function toBase64(buffer) {
+        var bytes = new Uint8Array(buffer);
+        var binary = '';
+        for (var i = 0; i < bytes.length; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary);
+      }
+
+      return {
+        iv: toBase64(iv),
+        ciphertext: toBase64(ciphertextBuffer)
+      };
+    }
+
+    /**
+     * Validates, encrypts, and stores the report, then shows confirmation.
+     */
+    async function submitReport() {
+      // 1. Validate
+      var result = validateForm();
+      if (!result.valid) return;
+
+      // 2. Check SubtleCrypto availability
+      if (!window.crypto || !window.crypto.subtle) {
+        var banner = document.getElementById('warning-banner');
+        banner.textContent = '⚠️ Your browser does not support the Web Crypto API. Please use a modern browser (Chrome, Firefox, Safari, Edge) to submit reports securely.';
+        banner.classList.add('visible');
+        return;
+      }
+
+      // 3. Build Report object (no PII)
+      var reportId = generateReportId();
+      var report = {
+        reportId: reportId,
+        description: descField.value,
+        dateTime: document.getElementById('field-datetime').value,
+        category: categorySelect.value,
+        submittedAt: new Date().toISOString()
+      };
+
+      if (categorySelect.value === 'other') {
+        report.otherCategory = otherField.value;
+      }
+
+      if (capturedLocation) {
+        report.location = capturedLocation;
+      }
+
+      // 4. Encrypt
+      var encrypted = await encryptReport(JSON.stringify(report));
+
+      // 5. Build StoredReport — ONLY these four fields, no PII
+      var storedReport = {
+        reportId: reportId,
+        iv: encrypted.iv,
+        ciphertext: encrypted.ciphertext,
+        storedAt: new Date().toISOString()
+      };
+
+      // 6. Persist to localStorage
+      try {
+        localStorage.setItem('shr_' + reportId, JSON.stringify(storedReport));
+      } catch (e) {
+        // localStorage quota exceeded
+        if (e && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22)) {
+          var banner = document.getElementById('warning-banner');
+          banner.textContent = '⚠️ Storage is full. Your report could not be saved. Please free up browser storage and try again, or note your Report ID: ' + reportId;
+          banner.classList.add('visible');
+        }
+        return;
+      }
+
+      // 7. Show confirmation — replace form with confirmation message
+      document.getElementById('report-form').style.display = 'none';
+      var confirmEl = document.getElementById('confirmation-message');
+      document.getElementById('confirmation-report-id').textContent = reportId;
+      confirmEl.classList.add('visible');
+    }
+    // ── Submit another report ──
+    document.getElementById('btn-submit-another').addEventListener('click', function() {
+      // Hide confirmation, reset and show form
+      var confirmEl = document.getElementById('confirmation-message');
+      confirmEl.classList.remove('visible');
+      var form = document.getElementById('report-form');
+      form.reset();
+      form.style.display = '';
+      // Reset derived state
+      capturedLocation = null;
+      locationDisplay.style.display = 'none';
+      locationDisplay.innerHTML = '';
+      document.getElementById('group-other-category').style.display = 'none';
+      descCounter.textContent = '0 / 2000';
+      descCounter.classList.remove('over-limit');
+      // Clear any validation errors
+      document.querySelectorAll('.form-group').forEach(function(g) { g.classList.remove('has-error'); });
+      document.querySelectorAll('.field-error').forEach(function(el) { el.textContent = ''; el.classList.remove('visible'); });
+    });
+
+    // ── Delete Report ──
+
+    /**
+     * Removes a stored report from localStorage by Report_ID.
+     * @param {string} reportId
+     * @returns {boolean} true if deleted, false if not found
+     */
+    function deleteReport(reportId) {
+      var key = 'shr_' + reportId;
+      if (localStorage.getItem(key) === null) {
+        return false;
+      }
+      localStorage.removeItem(key);
+      return true;
+    }
+
+    // Collapsible toggle
+    var deleteToggle = document.getElementById('delete-report-toggle');
+    var deleteBody = document.getElementById('delete-report-body');
+    deleteToggle.addEventListener('click', function() {
+      var expanded = deleteToggle.getAttribute('aria-expanded') === 'true';
+      deleteToggle.setAttribute('aria-expanded', String(!expanded));
+      deleteBody.classList.toggle('open', !expanded);
+    });
+
+    // Delete button handler
+    document.getElementById('btn-delete-report').addEventListener('click', function() {
+      var reportId = document.getElementById('field-delete-id').value.trim();
+      var statusEl = document.getElementById('delete-status');
+
+      // Reset status
+      statusEl.className = '';
+      statusEl.textContent = '';
+      statusEl.style.display = 'none';
+
+      if (!reportId) {
+        statusEl.className = 'error';
+        statusEl.textContent = 'Please enter a Report ID.';
+        return;
+      }
+
+      var deleted = deleteReport(reportId);
+      if (deleted) {
+        statusEl.className = 'success';
+        statusEl.textContent = 'Report deleted successfully.';
+        document.getElementById('field-delete-id').value = '';
+      } else {
+        statusEl.className = 'error';
+        statusEl.textContent = 'Report not found.';
+      }
+    });
+    // ── Emergency Contacts ──
+
+    /** @type {Array<{icon: string, name: string, phone: string, description: string}>} */
+    var emergencyContacts = [
+      {
+        icon: '🚔',
+        name: 'Emergency Services (Police)',
+        phone: '112',
+        description: 'Universal emergency number for police, fire, and ambulance. Also reachable via 911 in North America.'
+      },
+      {
+        icon: '🤝',
+        name: 'National Women\'s Helpline',
+        phone: '181',
+        description: 'Free, confidential support line for women facing violence, harassment, or abuse. Available 24/7.'
+      },
+      {
+        icon: '🏠',
+        name: 'Domestic Violence Hotline',
+        phone: '1-800-799-7233',
+        description: 'The National Domestic Violence Hotline — crisis intervention, safety planning, and local shelter referrals.'
+      }
+    ];
+
+    (function renderEmergencyContacts() {
+      var list = document.getElementById('emergency-contacts-list');
+      if (!list) return;
+      list.innerHTML = emergencyContacts.map(function(contact) {
+        var telHref = 'tel:' + contact.phone.replace(/[^+\d]/g, '');
+        return (
+          '<li class="emergency-card">' +
+            '<div class="emergency-card-info">' +
+              '<div class="emergency-card-header">' +
+                '<span class="emergency-card-icon" aria-hidden="true">' + contact.icon + '</span>' +
+                '<span class="emergency-card-name">' + contact.name + '</span>' +
+              '</div>' +
+              '<p class="emergency-card-desc">' + contact.description + '</p>' +
+            '</div>' +
+            '<a href="' + telHref + '" class="emergency-card-phone" aria-label="Call ' + contact.name + ' at ' + contact.phone + '">' +
+              '📞 ' + contact.phone +
+            '</a>' +
+          '</li>'
+        );
+      }).join('');
+    })();
+
+    // ── Support Resources ──
+
+    /** @type {Array<{title: string, description: string, url: string, category: string}>} */
+    var supportResources = [
+      {
+        title: 'National Legal Aid Network',
+        description: 'Free legal consultations for harassment and assault survivors. Find a local attorney or file a civil complaint.',
+        url: 'https://example.org/legal-aid',
+        category: 'legal'
+      },
+      {
+        title: 'Women\'s Law Project',
+        description: 'Legal advocacy and resources for women facing discrimination, harassment, or domestic abuse.',
+        url: 'https://example.org/womens-law',
+        category: 'legal'
+      },
+      {
+        title: 'Crisis Text Line',
+        description: 'Free 24/7 mental health support via text. Text HOME to 741741 to connect with a trained crisis counselor.',
+        url: 'https://example.org/crisis-text',
+        category: 'counseling'
+      },
+      {
+        title: 'RAINN Counseling Services',
+        description: 'Confidential online and phone counseling for survivors of sexual violence and harassment.',
+        url: 'https://example.org/rainn-counseling',
+        category: 'counseling'
+      },
+      {
+        title: 'Safe Spaces Community Network',
+        description: 'Peer support groups and community forums for survivors to share experiences and find solidarity.',
+        url: 'https://example.org/safe-spaces',
+        category: 'community'
+      },
+      {
+        title: 'Hollaback! Bystander Training',
+        description: 'Free training programs teaching bystander intervention techniques to reduce street harassment.',
+        url: 'https://example.org/hollaback',
+        category: 'community'
+      }
+    ];
+
+    (function renderSupportResources() {
+      var list = document.getElementById('resources-list');
+      if (!list) return;
+      list.innerHTML = supportResources.map(function(res) {
+        return (
+          '<li class="resource-card" data-category="' + res.category + '">' +
+            '<div class="resource-card-header">' +
+              '<span class="resource-card-title">' + res.title + '</span>' +
+              '<span class="resource-category-tag ' + res.category + '">' + res.category + '</span>' +
+            '</div>' +
+            '<p class="resource-card-desc">' + res.description + '</p>' +
+            '<a href="' + res.url + '" target="_blank" rel="noopener noreferrer" class="resource-card-link" aria-label="Visit ' + res.title + ' (opens in new tab)">' +
+              '🔗 Visit resource' +
+            '</a>' +
+          '</li>'
+        );
+      }).join('');
+    })();
+
+    (function initResourceFilter() {
+      var filterBtns = document.querySelectorAll('.filter-btn');
+      filterBtns.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var filter = btn.getAttribute('data-filter');
+
+          // Update button states
+          filterBtns.forEach(function(b) {
+            var isActive = b === btn;
+            b.classList.toggle('active', isActive);
+            b.setAttribute('aria-pressed', String(isActive));
+          });
+
+          // Show/hide cards
+          document.querySelectorAll('#resources-list .resource-card').forEach(function(card) {
+            var match = filter === 'all' || card.getAttribute('data-category') === filter;
+            card.classList.toggle('hidden', !match);
+          });
+        });
+      });
+    })();
+
+  </script>
+
+</body>
+</html>
